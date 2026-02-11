@@ -35,9 +35,10 @@ export function WaitlistSection() {
     <section id="waitlist" className="py-24 lg:py-32">
       <div className="mx-auto max-w-3xl px-6 sm:px-12 lg:px-[140px]">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          initial={{ opacity: 0, y: 40, scale: 0.96 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ type: "spring", stiffness: 80, damping: 20 }}
           className="relative overflow-hidden border border-border bg-card p-8 sm:p-12 shadow-2xl"
         >
           <DottedGlowBackground

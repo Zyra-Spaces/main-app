@@ -2,6 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes cell-ripple {
+  0% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.4;
+  }
+}
+
+.animate-cell-ripple {
+  animation: cell-ripple var(--duration, 200ms) ease-out none 1 var(--delay, 0ms);
+}
+
+@keyframes electricity-flow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -24;
+  }
+}
+
+.animate-electricity {
+  animation: electricity-flow 1.2s linear infinite;
+}
+
+@keyframes electricity-flow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -24;
+  }
+}
+
 @layer base {
   :root {
     /* Monotone dark: #0a0a0a, #0b0b0b, #171717 + white */

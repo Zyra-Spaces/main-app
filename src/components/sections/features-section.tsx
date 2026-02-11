@@ -98,8 +98,12 @@ const container = {
 };
 
 const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 },
+  hidden: { opacity: 0, y: 30 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 100, damping: 15 },
+  },
 };
 
 export function FeaturesSection() {
@@ -133,9 +137,16 @@ export function FeaturesSection() {
             <motion.div
               key={i}
               variants={item}
-              className="group relative border border-border bg-card p-6 transition-all hover:border-white/30 hover:shadow-lg hover:shadow-white/5"
+              whileHover={{ y: -4, transition: { duration: 0.2 } }}
+              className="group relative border border-border bg-card p-6 transition-colors hover:border-white/30 hover:shadow-lg hover:shadow-white/5"
             >
-              <div className="mb-4 text-white">{feature.icon}</div>
+              <motion.div
+                className="mb-4 text-white"
+                whileHover={{ scale: 1.1, rotate: 2 }}
+                transition={{ type: "spring", stiffness: 400 }}
+              >
+                {feature.icon}
+              </motion.div>
               <h3 className="font-nunito text-xl font-semibold mb-2">
                 {feature.title}
               </h3>

@@ -2,13 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
+    <motion.header
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ type: "spring", stiffness: 100, damping: 20 }}
+      className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl"
+    >
       <nav className="relative mx-auto flex max-w-7xl items-center justify-center px-6 py-4 sm:px-12 lg:px-[140px]">
         <div className="md:hidden absolute left-6 flex items-center justify-between w-[calc(100%-3rem)]">
           <button
@@ -71,9 +78,16 @@ export function Navbar() {
 
       </nav>
 
-      {mobileOpen && (
-        <div className="md:hidden border-t border-border px-6 py-4">
-          <div className="flex flex-col gap-4">
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden border-t border-border overflow-hidden"
+          >
+            <div className="flex flex-col gap-4 px-6 py-4">
             <Link
               href="#features"
               className="font-inconsolata text-sm"
@@ -95,9 +109,10 @@ export function Navbar() {
             >
               Join Waitlist
             </Link>
-          </div>
-        </div>
-      )}
-    </header>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.header>
   );
 }
