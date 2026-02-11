@@ -36,10 +36,9 @@ export function HeroSection() {
             Early Access Waitlist Open
           </p>
 
-          <h1 className="font-geist-pixel text-5xl sm:text-6xl lg:text-7xl xl:text-8xl leading-[1.1] tracking-tight text-white">
-            WELCOME
-            <br />
-            TO ZYRA
+<h1 className="font-geist-pixel text-4xl sm:text-5xl md:text-4xl lg:text-4xl xl:text-7xl leading-[1.1] tracking-tight text-white">
+            <span className="block whitespace-nowrap">WHERE BUILDERS</span>
+            <span className="block">MEET BUILDERS</span>
           </h1>
 
           <p className="font-inconsolata text-lg sm:text-xl text-white/70 max-w-2xl mx-auto">
