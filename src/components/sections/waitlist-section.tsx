@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DottedGlowBackground } from "@/components/ui/dotted-glow-background";
 import { motion } from "framer-motion";
 
 export function WaitlistSection() {
@@ -39,8 +40,22 @@ export function WaitlistSection() {
           viewport={{ once: true }}
           className="relative overflow-hidden border border-border bg-card p-8 sm:p-12 shadow-2xl"
         >
+          <DottedGlowBackground
+            className="pointer-events-none opacity-30"
+            opacity={1}
+            gap={10}
+            radius={1.6}
+            colorLightVar="--color-neutral-500"
+            glowColorLightVar="--color-neutral-600"
+            colorDarkVar="--color-neutral-500"
+            glowColorDarkVar="--color-neutral-400"
+            backgroundOpacity={0}
+            speedMin={0.3}
+            speedMax={1.6}
+            speedScale={1}
+          />
 
-          <div className="relative text-center">
+          <div className="relative z-10 text-center">
             <h2 className="font-nunito text-3xl sm:text-4xl font-bold tracking-tight mb-3">
               Join the Early Access Waitlist
             </h2>

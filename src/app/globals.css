@@ -23,6 +23,10 @@
     --input: 0 0% 9%;
     --ring: 0 0% 100%;
     --radius: 0.75rem;
+    /* Dotted glow (monotone dark) */
+    --color-neutral-500: #525252;
+    --color-neutral-600: #737373;
+    --color-neutral-400: #a3a3a3;
   }
 }
 
