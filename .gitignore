@@ -10,8 +10,10 @@ build
 dist
 
 # Environment
-.env
 .env*.local
+
+# Google Service Account (contains private key - never commit!)
+zyra-487207-a3bf46cb11ca.json
 
 # Debug
 npm-debug.log*
@@ -26,7 +28,6 @@ yarn-error.log*
 
 # IDE
 .idea
-.vscode
 *.swp
 *.swo
 
@@ -34,3 +35,4 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
+config.bat
