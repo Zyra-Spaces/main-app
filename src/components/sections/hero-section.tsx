@@ -2,7 +2,7 @@
 
 import { DitherShader } from "@/components/ui/dither-shader";
 import heroBg from "../../../assets/images/1.jpg";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants, ButtonCornerWrapper } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -89,20 +89,24 @@ export function HeroSection() {
             className="flex flex-col sm:flex-row gap-4 pt-4 justify-center"
           >
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                href="#waitlist"
-                className={cn(buttonVariants({ size: "xl", variant: "default" }))}
-              >
-                Get Early Access
-              </Link>
+              <ButtonCornerWrapper variant="default">
+                <Link
+                  href="#waitlist"
+                  className={cn(buttonVariants({ size: "xl", variant: "default" }))}
+                >
+                  Get Early Access
+                </Link>
+              </ButtonCornerWrapper>
             </motion.div>
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                href="#features"
-                className={cn(buttonVariants({ size: "xl", variant: "outline" }))}
-              >
-                See How It Works
-              </Link>
+              <ButtonCornerWrapper variant="outline">
+                <Link
+                  href="#features"
+                  className={cn(buttonVariants({ size: "xl", variant: "outline" }))}
+                >
+                  See How It Works
+                </Link>
+              </ButtonCornerWrapper>
             </motion.div>
           </motion.div>
         </motion.div>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants, ButtonCornerWrapper } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
@@ -68,12 +68,14 @@ export function Navbar() {
           >
             Early Access
           </Link>
-          <Link
-            href="#waitlist"
-            className={cn(buttonVariants({ size: "sm", variant: "default" }))}
-          >
-            Join Waitlist
-          </Link>
+          <ButtonCornerWrapper variant="default">
+            <Link
+              href="#waitlist"
+              className={cn(buttonVariants({ size: "sm", variant: "default" }))}
+            >
+              Join Waitlist
+            </Link>
+          </ButtonCornerWrapper>
         </div>
 
       </nav>
@@ -102,13 +104,15 @@ export function Navbar() {
             >
               Early Access
             </Link>
-            <Link
-              href="#waitlist"
-              onClick={() => setMobileOpen(false)}
-              className={cn(buttonVariants())}
-            >
-              Join Waitlist
-            </Link>
+            <ButtonCornerWrapper variant="default">
+              <Link
+                href="#waitlist"
+                onClick={() => setMobileOpen(false)}
+                className={cn(buttonVariants())}
+              >
+                Join Waitlist
+              </Link>
+            </ButtonCornerWrapper>
             </div>
           </motion.div>
         )}

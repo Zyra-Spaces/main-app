@@ -31,6 +31,32 @@
   animation: electricity-flow 1.2s linear infinite;
 }
 
+/* L-shaped corner accents for buttons */
+.btn-corner-accent {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: white;
+  border-style: solid;
+  border-width: 0;
+  pointer-events: none;
+}
+
+/* Black edges for white buttons */
+.btn-corner-accent-dark {
+  border-color: #ffffff;
+}
+
+/* Darker gray edges for outline/secondary buttons (better visibility) */
+.btn-corner-accent-outline {
+  border-color: hsl(0, 0%, 91%);
+}
+
+.btn-corner-accent-tl { top: -1px; left: -1px; border-top-width: 2px; border-left-width: 2px; }
+.btn-corner-accent-tr { top: -1px; right: -1px; border-top-width: 2px; border-right-width: 2px; }
+.btn-corner-accent-bl { bottom: -1px; left: -1px; border-bottom-width: 2px; border-left-width: 2px; }
+.btn-corner-accent-br { bottom: -1px; right: -1px; border-bottom-width: 2px; border-right-width: 2px; }
+
 @keyframes electricity-flow {
   0% {
     stroke-dashoffset: 0;

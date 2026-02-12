@@ -19,11 +19,18 @@ export function WaitlistSection() {
     setStatus("loading");
 
     try {
-      // TODO: Replace with your actual waitlist API endpoint
-      // For now, we'll simulate success
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
 
-      // Example: await fetch("/api/waitlist", { method: "POST", body: JSON.stringify({ email }) });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error ?? "Something went wrong");
+      }
+
       setStatus("success");
       setEmail("");
     } catch {
