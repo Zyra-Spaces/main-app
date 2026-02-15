@@ -5,6 +5,7 @@ import {
 } from "next/font/google";
 import { GeistMono } from "geist/font/mono";
 import { GeistPixelSquare } from "geist/font/pixel";
+import { AuthProvider } from "@/lib/auth-context";
 import "./globals.css";
 
 const nunitoSans = Nunito_Sans({
@@ -35,7 +36,9 @@ export default function RootLayout({
       lang="en"
       className={`dark ${nunitoSans.variable} ${inconsolata.variable} ${GeistMono.variable} ${GeistPixelSquare.variable}`}
     >
-      <body className="min-h-screen font-sans">{children}</body>
+      <body className="min-h-screen font-sans">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }
