@@ -62,7 +62,13 @@ export async function GET(request: Request) {
         : { data: [] };
     const founderMap = new Map((founderProfiles ?? []).map((p) => [p.id, p]));
 
-    const projectsWithFounders = (projects ?? []).map((p: { founder_id: string }) => ({
+    type ProjectWithProfiles = {
+      id: string;
+      founder_id: string;
+      [key: string]: unknown;
+      profiles: { id: string; full_name: string | null; avatar_url: string | null } | null;
+    };
+    const projectsWithFounders: ProjectWithProfiles[] = (projects ?? []).map((p) => ({
       ...p,
       profiles: founderMap.get(p.founder_id) ?? null,
     }));
@@ -80,7 +86,7 @@ export async function GET(request: Request) {
       {} as Record<string, number>
     );
 
-    const projectsWithMeta = projectsWithFounders.map((p: { id: string }) => ({
+    const projectsWithMeta = projectsWithFounders.map((p) => ({
       ...p,
       upvoteCount: upvoteCounts[p.id] ?? 0,
     }));
