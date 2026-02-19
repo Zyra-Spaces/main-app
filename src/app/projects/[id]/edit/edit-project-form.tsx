@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonCornerWrapper } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -405,9 +406,12 @@ export function EditProjectForm({
           </Button>
         </ButtonCornerWrapper>
         <ButtonCornerWrapper variant="outline">
-          <Button type="button" asChild>
-            <Link href={`/projects/${projectId}`}>Cancel</Link>
-          </Button>
+          <Link
+            href={`/projects/${projectId}`}
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            Cancel
+          </Link>
         </ButtonCornerWrapper>
       </div>
     </form>
