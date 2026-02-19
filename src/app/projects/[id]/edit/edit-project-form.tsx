@@ -2,37 +2,54 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ButtonCornerWrapper } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { rateLimiters } from "@/lib/rate-limit";
 
 type Role = { role: string; count: number };
 type LinkItem = { type: "github" | "linkedin" | "peerlist"; url: string };
 
-export function CreateProjectForm({
+type Initial = {
+  name: string;
+  description: string;
+  category: string;
+  status: string;
+  executionType: string;
+  startDate: string;
+  endDate: string;
+  coverUrl: string | null;
+  bannerUrl: string | null;
+  roles: Role[];
+  links: LinkItem[];
+};
+
+export function EditProjectForm({
+  projectId,
+  initial,
   categories,
   executionTypes,
+  statusOptions,
 }: {
+  projectId: string;
+  initial: Initial;
   categories: readonly { value: string; label: string }[];
   executionTypes: readonly { value: string; label: string }[];
+  statusOptions: readonly { value: string; label: string }[];
 }) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("open_source");
-  const [executionType, setExecutionType] = useState("idea");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [roles, setRoles] = useState<Role[]>([{ role: "", count: 1 }]);
-  const [links, setLinks] = useState<LinkItem[]>([
-    { type: "github", url: "" },
-    { type: "linkedin", url: "" },
-    { type: "peerlist", url: "" },
-  ]);
+  const [name, setName] = useState(initial.name);
+  const [description, setDescription] = useState(initial.description);
+  const [category, setCategory] = useState(initial.category);
+  const [status, setStatus] = useState(initial.status);
+  const [executionType, setExecutionType] = useState(initial.executionType);
+  const [startDate, setStartDate] = useState(initial.startDate);
+  const [endDate, setEndDate] = useState(initial.endDate);
+  const [roles, setRoles] = useState<Role[]>(initial.roles);
+  const [links, setLinks] = useState<LinkItem[]>(initial.links);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,9 +59,7 @@ export function CreateProjectForm({
   const removeRole = (i: number) => setRoles((r) => r.filter((_, idx) => idx !== i));
   const updateRole = (i: number, field: keyof Role, value: string | number) => {
     setRoles((r) =>
-      r.map((item, idx) =>
-        idx === i ? { ...item, [field]: value } : item
-      )
+      r.map((item, idx) => (idx === i ? { ...item, [field]: value } : item))
     );
   };
 
@@ -65,7 +80,6 @@ export function CreateProjectForm({
       return;
     }
 
-    // Input validation: sanitize and limit length
     const sanitizedName = name.trim().slice(0, 100).replace(/<[^>]*>/g, "");
     const sanitizedDescription = description.trim().slice(0, 2000).replace(/<[^>]*>/g, "");
     if (!sanitizedName || !sanitizedDescription) {
@@ -89,107 +103,116 @@ export function CreateProjectForm({
       return;
     }
 
-    // Rate limiting: 3/hour per user
-    const identifier = `project-creation:${user.id}`;
-    const limitResult = rateLimiters.projectCreation(identifier);
-    if (!limitResult.success) {
-      setError("Too many projects created. Please wait before creating another.");
-      setLoading(false);
-      return;
-    }
-
-    const { data: project, error: insertError } = await supabase
-      .from("projects")
-      .insert({
-        founder_id: user.id,
-        name: sanitizedName,
-        description: sanitizedDescription,
-        category,
-        status: "open",
-        execution_type: executionType,
-        start_date: startDate || null,
-        end_date: endDate || null,
-      })
-      .select("id")
-      .single();
-
-    if (insertError || !project) {
-      setError("Failed to create project.");
-      setLoading(false);
-      return;
-    }
-
-    let coverUrl: string | null = null;
-    let bannerUrl: string | null = null;
+    // Images: files go to Supabase Storage (project-covers / project-banners buckets);
+    // the public URLs are then saved to projects.cover_url and projects.banner_url.
+    let coverUrl: string | null = initial.coverUrl;
+    let bannerUrl: string | null = initial.bannerUrl;
 
     if (coverFile) {
-      const ext = coverFile.name.split(".").pop() || "jpg";
-      const path = `${project.id}/cover.${ext}`;
+      const ext = coverFile.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${projectId}/cover.${ext}`;
       const { error: uploadErr } = await supabase.storage
         .from("project-covers")
         .upload(path, coverFile, { upsert: true });
-      if (!uploadErr) {
-        const { data: urlData } = supabase.storage
-          .from("project-covers")
-          .getPublicUrl(path);
-        coverUrl = urlData.publicUrl;
+      if (uploadErr) {
+        setError(`Cover image upload failed: ${uploadErr.message}`);
+        setLoading(false);
+        return;
       }
+      const { data: urlData } = supabase.storage
+        .from("project-covers")
+        .getPublicUrl(path);
+      coverUrl = urlData.publicUrl;
     }
 
     if (bannerFile) {
-      const ext = bannerFile.name.split(".").pop() || "jpg";
-      const path = `${project.id}/banner.${ext}`;
+      const ext = bannerFile.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${projectId}/banner.${ext}`;
       const { error: uploadErr } = await supabase.storage
         .from("project-banners")
         .upload(path, bannerFile, { upsert: true });
-      if (!uploadErr) {
-        const { data: urlData } = supabase.storage
-          .from("project-banners")
-          .getPublicUrl(path);
-        bannerUrl = urlData.publicUrl;
+      if (uploadErr) {
+        setError(`Banner image upload failed: ${uploadErr.message}`);
+        setLoading(false);
+        return;
       }
+      const { data: urlData } = supabase.storage
+        .from("project-banners")
+        .getPublicUrl(path);
+      bannerUrl = urlData.publicUrl;
     }
 
-    if (coverUrl || bannerUrl) {
-      await supabase
-        .from("projects")
-        .update({
-          cover_url: coverUrl,
-          banner_url: bannerUrl,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", project.id);
+    const { error: updateError } = await supabase
+      .from("projects")
+      .update({
+        name: sanitizedName,
+        description: sanitizedDescription,
+        category,
+        status,
+        execution_type: executionType,
+        start_date: startDate || null,
+        end_date: endDate || null,
+        cover_url: coverUrl,
+        banner_url: bannerUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", projectId)
+      .eq("founder_id", user.id);
+
+    if (updateError) {
+      setError(`Failed to update project: ${updateError.message}`);
+      setLoading(false);
+      return;
     }
 
-    await supabase.from("contributor_roles").insert(
+    const { error: rolesDeleteErr } = await supabase
+      .from("contributor_roles")
+      .delete()
+      .eq("project_id", projectId);
+    if (rolesDeleteErr) {
+      setError(`Failed to update roles: ${rolesDeleteErr.message}`);
+      setLoading(false);
+      return;
+    }
+    const { error: rolesInsertErr } = await supabase.from("contributor_roles").insert(
       validRoles.map((r) => ({
-        project_id: project.id,
+        project_id: projectId,
         role: r.role.trim(),
         count: Number(r.count) || 1,
       }))
     );
+    if (rolesInsertErr) {
+      setError(`Failed to save roles: ${rolesInsertErr.message}`);
+      setLoading(false);
+      return;
+    }
 
+    const { error: linksDeleteErr } = await supabase
+      .from("project_links")
+      .delete()
+      .eq("project_id", projectId);
+    if (linksDeleteErr) {
+      setError(`Failed to update links: ${linksDeleteErr.message}`);
+      setLoading(false);
+      return;
+    }
     const validLinks = links.filter((l) => l.url.trim());
     if (validLinks.length > 0) {
-      await supabase.from("project_links").insert(
+      const { error: linksInsertErr } = await supabase.from("project_links").insert(
         validLinks.map((l) => ({
-          project_id: project.id,
+          project_id: projectId,
           type: l.type,
           url: l.url.trim(),
         }))
       );
+      if (linksInsertErr) {
+        setError(`Failed to save links: ${linksInsertErr.message}`);
+        setLoading(false);
+        return;
+      }
     }
 
-    if (executionType === "launched") {
-      await supabase.from("products").insert({
-        project_id: project.id,
-        name: name.trim(),
-        url: validLinks.find((l) => l.type === "github")?.url || null,
-        activity_summary: null,
-      });
-    }
-
-    router.push(`/projects/${project.id}`);
+    router.push(`/projects/${projectId}`);
     router.refresh();
     setLoading(false);
   };
@@ -233,6 +256,20 @@ export function CreateProjectForm({
             </select>
           </div>
           <div>
+            <label className="font-inconsolata text-sm mb-2 block">Status</label>
+            <select
+              className="flex h-12 w-full border-2 border-input bg-background px-4 font-inconsolata"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              {statusOptions.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="font-inconsolata text-sm mb-2 block">Execution type</label>
             <select
               className="flex h-12 w-full border-2 border-input bg-background px-4 font-inconsolata"
@@ -271,12 +308,13 @@ export function CreateProjectForm({
         <CardHeader>
           <h2 className="font-nunito text-lg font-semibold">Images</h2>
           <p className="font-inconsolata text-sm text-muted-foreground">
-            Cover (boxed) and banner. Project images use rounded corners, distinct from user avatars.
+            Upload new images to replace existing cover or banner. Leave empty to keep current.
+            Files are saved to Supabase Storage (project-covers / project-banners); URLs are stored on the project.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="font-inconsolata text-sm mb-2 block">Cover image</label>
+            <label className="font-inconsolata text-sm mb-2 block">Cover image (optional)</label>
             <Input
               type="file"
               accept="image/*"
@@ -284,7 +322,7 @@ export function CreateProjectForm({
             />
           </div>
           <div>
-            <label className="font-inconsolata text-sm mb-2 block">Banner image</label>
+            <label className="font-inconsolata text-sm mb-2 block">Banner image (optional)</label>
             <Input
               type="file"
               accept="image/*"
@@ -297,9 +335,6 @@ export function CreateProjectForm({
       <Card>
         <CardHeader>
           <h2 className="font-nunito text-lg font-semibold">Contributors needed</h2>
-          <p className="font-inconsolata text-sm text-muted-foreground">
-            e.g. 2 Designers, 3 Backend devs
-          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {roles.map((r, i) => (
@@ -341,9 +376,6 @@ export function CreateProjectForm({
       <Card>
         <CardHeader>
           <h2 className="font-nunito text-lg font-semibold">Links</h2>
-          <p className="font-inconsolata text-sm text-muted-foreground">
-            GitHub, LinkedIn, Peerlist
-          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {links.map((l) => (
@@ -366,11 +398,18 @@ export function CreateProjectForm({
         <p className="font-inconsolata text-sm text-destructive">{error}</p>
       )}
 
-      <ButtonCornerWrapper variant="default">
-        <Button type="submit" disabled={loading}>
-          {loading ? "Creating..." : "Create project"}
-        </Button>
-      </ButtonCornerWrapper>
+      <div className="flex gap-4">
+        <ButtonCornerWrapper variant="default">
+          <Button type="submit" disabled={loading}>
+            {loading ? "Saving..." : "Save changes"}
+          </Button>
+        </ButtonCornerWrapper>
+        <ButtonCornerWrapper variant="outline">
+          <Button type="button" asChild>
+            <Link href={`/projects/${projectId}`}>Cancel</Link>
+          </Button>
+        </ButtonCornerWrapper>
+      </div>
     </form>
   );
 }

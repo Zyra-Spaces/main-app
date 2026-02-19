@@ -7,6 +7,8 @@ import { ButtonCornerWrapper } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { rateLimiters } from "@/lib/rate-limit";
+import { PresenceIndicator } from "@/components/projects/presence-indicator";
 
 type ContributorRole = { role: string; count: number };
 type ContributorRequest = {
@@ -60,6 +62,7 @@ export function ProjectDetailClient({
   const [posting, setPosting] = useState(false);
   const [posts, setPosts] = useState(projectPosts);
   const [requests, setRequests] = useState(contributorRequests);
+  const [error, setError] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -94,14 +97,37 @@ export function ProjectDetailClient({
   const handleSubmitFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId || !feedbackContent.trim()) return;
-    const { data } = await supabase
+
+    // Rate limiting: 10/min per user
+    const identifier = `feedback:${userId}`;
+    const limitResult = rateLimiters.feedback(identifier);
+    if (!limitResult.success) {
+      setError("Too many requests. Please wait before adding more feedback.");
+      return;
+    }
+
+    // Input validation: max 2000 characters, strip HTML
+    const sanitized = feedbackContent.trim().slice(0, 2000).replace(/<[^>]*>/g, "");
+    if (!sanitized) {
+      setError("Feedback cannot be empty.");
+      return;
+    }
+
+    const { data, error: insertError } = await supabase
       .from("feedback")
-      .insert({ project_id: projectId, user_id: userId, content: feedbackContent.trim() })
+      .insert({ project_id: projectId, user_id: userId, content: sanitized })
       .select("id, user_id, content, created_at, profiles(id, full_name, avatar_url)")
       .single();
+    
+    if (insertError) {
+      setError("Failed to submit feedback.");
+      return;
+    }
+
     if (data) {
       setFeedbackListState((prev) => [data as unknown as FeedbackItem, ...prev]);
       setFeedbackContent("");
+      setError(null);
     }
   };
 
@@ -158,6 +184,9 @@ export function ProjectDetailClient({
 
   return (
     <div className="mt-12 space-y-12">
+      {userId && (
+        <PresenceIndicator projectId={projectId} userId={userId} isFounder={isFounder} />
+      )}
       <div className="flex gap-4 flex-wrap">
         <ButtonCornerWrapper variant="outline">
           <Button variant="outline" onClick={handleUpvote}>
@@ -290,14 +319,26 @@ export function ProjectDetailClient({
           {userId && (
             <form onSubmit={handleSubmitFeedback} className="space-y-3">
               <Textarea
-                placeholder="Add feedback..."
+                placeholder="Add feedback... (max 2000 characters)"
                 value={feedbackContent}
-                onChange={(e) => setFeedbackContent(e.target.value)}
+                onChange={(e) => {
+                  setFeedbackContent(e.target.value.slice(0, 2000));
+                  setError(null);
+                }}
                 rows={3}
+                maxLength={2000}
               />
-              <Button type="submit" disabled={!feedbackContent.trim()}>
-                Post feedback
-              </Button>
+              {error && (
+                <p className="font-inconsolata text-sm text-destructive">{error}</p>
+              )}
+              <div className="flex items-center justify-between">
+                <p className="font-inconsolata text-xs text-muted-foreground">
+                  {feedbackContent.length}/2000
+                </p>
+                <Button type="submit" disabled={!feedbackContent.trim() || feedbackContent.length > 2000}>
+                  Post feedback
+                </Button>
+              </div>
             </form>
           )}
           <div className="space-y-4">

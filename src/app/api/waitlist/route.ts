@@ -1,11 +1,22 @@
 import { google } from "googleapis";
 import nodemailer from "nodemailer";
 import { NextResponse } from "next/server";
+import { rateLimit } from "@/lib/rate-limit";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: Request) {
   try {
+    // Rate limiting: 5 requests per minute per IP
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || req.headers.get("x-real-ip") || "unknown";
+    const limit = rateLimit(ip, 5, 60000);
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
+
     const { email } = await req.json();
 
     if (!email || typeof email !== "string") {

@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { buttonVariants, ButtonCornerWrapper } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -104,6 +105,7 @@ export function Navbar() {
               >
                 Products
               </Link>
+              <NotificationBell />
               <ButtonCornerWrapper variant="outline">
                 <button
                   onClick={() => signOut()}

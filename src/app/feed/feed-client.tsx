@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -43,22 +43,70 @@ export function FeedClient({
   const [tab, setTab] = useState("all");
   const [projects, setProjects] = useState(initialProjects);
   const [search, setSearch] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  // Server-side search when query is 2+ characters
+  useEffect(() => {
+    const timeoutId = setTimeout(async () => {
+      if (search.trim().length >= 2) {
+        setSearchLoading(true);
+        try {
+          const res = await fetch(`/api/projects/search?q=${encodeURIComponent(search.trim())}`);
+          const data = await res.json();
+          if (data.projects) {
+            // Fetch upvote data for searched projects
+            const projectIds = data.projects.map((p: ProjectWithMeta) => p.id);
+            const upvotesRes = await fetch("/api/upvotes").catch(() => null);
+            const upvotesData = upvotesRes ? await upvotesRes.json().catch(() => ({ data: [] })) : { data: [] };
+            const upvoteCounts = (upvotesData.data ?? []).reduce(
+              (acc: Record<string, number>, u: { project_id: string }) => {
+                if (projectIds.includes(u.project_id)) {
+                  acc[u.project_id] = (acc[u.project_id] ?? 0) + 1;
+                }
+                return acc;
+              },
+              {} as Record<string, number>
+            );
+            const userUpvotesRes = userId
+              ? await fetch(`/api/upvotes?user=${userId}`).catch(() => null)
+              : null;
+            const userUpvotesData = userUpvotesRes ? await userUpvotesRes.json().catch(() => ({ data: [] })) : { data: [] };
+            const userUpvotedSet = new Set((userUpvotesData.data ?? []).map((u: { project_id: string }) => u.project_id));
+            const projectsWithUpvotes = data.projects.map((p: ProjectWithMeta) => ({
+              ...p,
+              upvoteCount: upvoteCounts[p.id] ?? 0,
+              userUpvoted: userUpvotedSet.has(p.id),
+            }));
+            setProjects(projectsWithUpvotes);
+          }
+        } catch (err) {
+          console.error("[search]", err);
+        } finally {
+          setSearchLoading(false);
+        }
+      } else if (search.trim().length === 0) {
+        // Reset to initial projects when search is cleared
+        setProjects(initialProjects);
+      }
+    }, 300); // Debounce 300ms
+
+    return () => clearTimeout(timeoutId);
+  }, [search, initialProjects, userId]);
 
   const filtered = useMemo(() => {
     let list = [...projects];
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.description.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q)
-      );
-    }
+    // Client-side filtering for tabs only (search is handled server-side)
     if (tab === "open") {
       list = list.filter((p) => p.status === "open");
     } else if (tab === "trending") {
-      list = [...list].sort((a, b) => b.upvoteCount - a.upvoteCount);
+      // Sort by upvotes + view count (from analytics) + recency
+      list = [...list].sort((a, b) => {
+        const aViews = (a as { project_analytics?: { view_count?: number }[] }).project_analytics?.[0]?.view_count ?? 0;
+        const bViews = (b as { project_analytics?: { view_count?: number }[] }).project_analytics?.[0]?.view_count ?? 0;
+        const aScore = a.upvoteCount * 2 + aViews + (new Date(a.updated_at).getTime() / 1000000);
+        const bScore = b.upvoteCount * 2 + bViews + (new Date(b.updated_at).getTime() / 1000000);
+        return bScore - aScore;
+      });
     } else if (tab === "open_source") {
       list = list.filter((p) => p.category === "open_source");
     } else if (tab === "startup") {
@@ -80,7 +128,7 @@ export function FeedClient({
       (a, b) =>
         new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
     );
-  }, [projects, tab, userQualifications, search]);
+  }, [projects, tab, userQualifications]);
 
   const displayList = filtered;
 
@@ -105,18 +153,26 @@ export function FeedClient({
       </TabsList>
       <div className="mb-6">
         <Input
-          placeholder="Search projects..."
+          placeholder="Search projects... (server-side fuzzy search)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm font-inconsolata"
+          disabled={searchLoading}
         />
+        {searchLoading && (
+          <p className="font-inconsolata text-xs text-muted-foreground mt-1">
+            Searching...
+          </p>
+        )}
       </div>
       {TABS.map((t) => (
         <TabsContent key={t.value} value={t.value} className="mt-0">
           <div className="space-y-6">
           {displayList.length === 0 ? (
             <p className="font-inconsolata text-muted-foreground">
-              No projects match this filter.{" "}
+              {search.trim().length >= 2
+                ? "No projects found. Try a different search term."
+                : "No projects match this filter."}{" "}
               <Link href="/projects/new" className="text-foreground hover:underline">
                 Start a project
               </Link>

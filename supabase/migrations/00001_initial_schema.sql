@@ -159,13 +159,21 @@ BEGIN
   VALUES (
     NEW.id,
     NEW.email,
-    NEW.raw_user_meta_data->>'full_name',
-    NEW.raw_user_meta_data->>'avatar_url'
+    COALESCE(
+      NEW.raw_user_meta_data->>'full_name',
+      NEW.raw_user_meta_data->>'name',
+      NEW.raw_user_meta_data->>'display_name'
+    ),
+    COALESCE(
+      NEW.raw_user_meta_data->>'avatar_url',
+      NEW.raw_user_meta_data->>'picture',
+      NEW.raw_user_meta_data->>'image'
+    )
   )
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
-    full_name = EXCLUDED.full_name,
-    avatar_url = EXCLUDED.avatar_url,
+    full_name = COALESCE(EXCLUDED.full_name, profiles.full_name),
+    avatar_url = COALESCE(EXCLUDED.avatar_url, profiles.avatar_url),
     updated_at = now();
   RETURN NEW;
 END;

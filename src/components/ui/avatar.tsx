@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
@@ -19,15 +21,33 @@ Avatar.displayName = "Avatar";
 const AvatarImage = React.forwardRef<
   HTMLImageElement,
   React.ImgHTMLAttributes<HTMLImageElement>
->(({ className, alt = "", ...props }, ref) => (
-  // eslint-disable-next-line @next/next/no-img-element
-  <img
-    ref={ref}
-    alt={alt}
-    className={cn("aspect-square h-full w-full", className)}
-    {...props}
-  />
-));
+>(({ className, alt = "", src, ...props }, ref) => {
+  // Handle external URLs (Google, GitHub, etc.) - use direct URL
+  const isGoogleUrl = src && typeof src === 'string' && src.includes('googleusercontent.com');
+  const isExternalUrl = src && typeof src === 'string' && (
+    src.startsWith('http://') || 
+    (src.startsWith('https://') && !src.includes('supabase.co'))
+  );
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      ref={ref}
+      alt={alt}
+      src={src}
+      className={cn("aspect-square h-full w-full object-cover", className)}
+      // Don't use crossOrigin for Google images - they don't support CORS
+      crossOrigin={isExternalUrl && !isGoogleUrl ? "anonymous" : undefined}
+      referrerPolicy={isExternalUrl ? "no-referrer" : undefined}
+      loading="lazy"
+      onError={(e) => {
+        // Hide image on error, fallback will show
+        e.currentTarget.style.display = 'none';
+      }}
+      {...props}
+    />
+  );
+});
 AvatarImage.displayName = "AvatarImage";
 
 const AvatarFallback = React.forwardRef<

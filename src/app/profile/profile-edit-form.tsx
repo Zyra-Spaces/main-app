@@ -9,7 +9,13 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 type Qualification = { id?: string; skill: string; level: string };
-type Profile = { github_url?: string | null; linkedin_url?: string | null; peerlist_url?: string | null } | null;
+type Profile = {
+  full_name?: string | null;
+  avatar_url?: string | null;
+  github_url?: string | null;
+  linkedin_url?: string | null;
+  peerlist_url?: string | null;
+} | null;
 
 export function ProfileEditForm({
   userId,
@@ -23,6 +29,8 @@ export function ProfileEditForm({
   const [qualifications, setQualifications] = useState<Qualification[]>(
     initial.length > 0 ? initial : [{ skill: "", level: "" }]
   );
+  const [fullName, setFullName] = useState(profile?.full_name ?? "");
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? "");
   const [githubUrl, setGithubUrl] = useState(profile?.github_url ?? "");
   const [linkedinUrl, setLinkedinUrl] = useState(profile?.linkedin_url ?? "");
   const [peerlistUrl, setPeerlistUrl] = useState(profile?.peerlist_url ?? "");
@@ -54,6 +62,8 @@ export function ProfileEditForm({
     await supabase
       .from("profiles")
       .update({
+        full_name: fullName.trim() || profile?.full_name || null,
+        avatar_url: avatarUrl.trim() || profile?.avatar_url || null,
         github_url: githubUrl.trim() || null,
         linkedin_url: linkedinUrl.trim() || null,
         peerlist_url: peerlistUrl.trim() || null,
@@ -84,6 +94,29 @@ export function ProfileEditForm({
           <h2 className="font-nunito text-lg font-semibold">Edit profile</h2>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div>
+            <label className="font-inconsolata text-sm mb-2 block">Display name</label>
+            <Input
+              placeholder="Your name (from Google if you signed up with Google)"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+            />
+            <p className="font-inconsolata text-xs text-muted-foreground mt-1">
+              Override the name from your login. Leave blank to keep current.
+            </p>
+          </div>
+          <div>
+            <label className="font-inconsolata text-sm mb-2 block">Profile picture URL</label>
+            <Input
+              type="url"
+              placeholder="https://... (from Google/GitHub or your own image URL)"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+            />
+            <p className="font-inconsolata text-xs text-muted-foreground mt-1">
+              Override your avatar. Leave blank to keep current (e.g. Google profile photo).
+            </p>
+          </div>
           <div>
             <label className="font-inconsolata text-sm mb-2 block">GitHub URL</label>
             <Input

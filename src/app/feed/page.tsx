@@ -29,9 +29,11 @@ export default async function FeedPage() {
       created_at,
       updated_at,
       founder_id,
-      contributor_roles(role)
+      contributor_roles(role),
+      project_analytics(view_count)
     `)
     .neq("status", "draft")
+    .is("deleted_at", null)
     .order("updated_at", { ascending: false });
 
   const founderIds = [...new Set((projects ?? []).map((p) => p.founder_id))];

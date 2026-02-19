@@ -7,6 +7,7 @@ import { Footer } from "@/components/layout/footer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ProjectDetailClient } from "./project-detail-client";
+import { MilestonesSection } from "@/components/projects/milestones-section";
 
 export default async function ProjectDetailPage({
   params,
@@ -28,9 +29,55 @@ export default async function ProjectDetailPage({
       project_posts(id, content, created_at)
     `)
     .eq("id", id)
+    .is("deleted_at", null)
     .single();
 
   if (!project || project.status === "draft") notFound();
+
+  // Track view analytics (non-blocking, fire-and-forget)
+  (async () => {
+    try {
+      const { error } = await supabase.rpc("increment_project_view", { project_uuid: id });
+      if (error) {
+        // Fallback if function doesn't exist yet - use upsert with increment
+        const { data: existing } = await supabase
+          .from("project_analytics")
+          .select("view_count")
+          .eq("project_id", id)
+          .single();
+        
+        if (existing) {
+          // Update existing record
+          await supabase
+            .from("project_analytics")
+            .update({
+              view_count: existing.view_count + 1,
+              last_viewed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("project_id", id);
+        } else {
+          // Create new record
+          await supabase
+            .from("project_analytics")
+            .insert({
+              project_id: id,
+              view_count: 1,
+              last_viewed_at: new Date().toISOString(),
+            });
+        }
+      }
+    } catch (err) {
+      // Silently fail - analytics tracking shouldn't block page render
+      console.error("[analytics]", err);
+    }
+  })();
+
+  const { data: milestones } = await supabase
+    .from("project_milestones")
+    .select("*")
+    .eq("project_id", id)
+    .order("created_at", { ascending: false });
 
   const founderId = project.founder_id;
   const memberIds = [
@@ -139,7 +186,17 @@ export default async function ProjectDetailPage({
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="font-geist-pixel text-3xl font-bold">{projectWithProfiles.name}</h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="font-geist-pixel text-3xl font-bold">{projectWithProfiles.name}</h1>
+                {isFounder && (
+                  <Link
+                    href={`/projects/${id}/edit`}
+                    className="font-inconsolata text-sm text-muted-foreground hover:text-foreground border border-border hover:border-muted-foreground/50 px-3 py-1.5 rounded transition-colors"
+                  >
+                    Edit project
+                  </Link>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2 mt-2">
                 <Badge>{projectWithProfiles.category}</Badge>
                 <Badge variant="secondary">{projectWithProfiles.execution_type}</Badge>
@@ -236,6 +293,12 @@ export default async function ProjectDetailPage({
               </div>
             </div>
           )}
+
+          <MilestonesSection
+            projectId={id}
+            isFounder={isFounder}
+            initialMilestones={milestones ?? []}
+          />
 
           <ProjectDetailClient
             projectId={id}

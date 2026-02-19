@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { rateLimiters } from "@/lib/rate-limit";
 
 type ProjectWithMeta = {
   id: string;
@@ -37,6 +38,15 @@ export function ProjectCard({
   const handleUpvote = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!userId) return;
+
+    // Rate limiting: 30/min per user
+    const identifier = `upvote:${userId}`;
+    const limitResult = rateLimiters.upvote(identifier);
+    if (!limitResult.success) {
+      return; // Silently fail for rate limit
+    }
+
     const supabase = createClient();
     if (project.userUpvoted) {
       await supabase
@@ -77,7 +87,7 @@ export function ProjectCard({
               fill
               className="object-cover rounded-t-lg"
               sizes="(max-width: 768px) 100vw, 896px"
-              unoptimized
+              quality={80}
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center font-inconsolata text-muted-foreground text-sm">

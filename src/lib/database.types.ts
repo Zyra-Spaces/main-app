@@ -21,6 +21,17 @@ export type ContributorRequestStatus = "pending" | "approved" | "rejected";
 
 export type LinkType = "github" | "linkedin" | "peerlist";
 
+export type NotificationType =
+  | "contributor_request"
+  | "request_approved"
+  | "request_rejected"
+  | "feedback"
+  | "project_update"
+  | "milestone_created"
+  | "milestone_completed";
+
+export type MilestoneStatus = "pending" | "in_progress" | "completed" | "cancelled";
+
 export interface Database {
   public: {
     Tables: {
@@ -87,6 +98,8 @@ export interface Database {
           start_date: string | null;
           end_date: string | null;
           execution_type: ExecutionType;
+          deleted_at: string | null;
+          search_vector: unknown | null;
           created_at: string;
           updated_at: string;
         };
@@ -112,6 +125,81 @@ export interface Database {
           start_date?: string | null;
           end_date?: string | null;
           execution_type?: ExecutionType;
+          deleted_at?: string | null;
+          updated_at?: string;
+        };
+      };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: NotificationType;
+          actor_id: string | null;
+          project_id: string | null;
+          milestone_id: string | null;
+          read_status: boolean;
+          message: string | null;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          type: NotificationType;
+          actor_id?: string | null;
+          project_id?: string | null;
+          milestone_id?: string | null;
+          read_status?: boolean;
+          message?: string | null;
+        };
+        Update: {
+          read_status?: boolean;
+        };
+      };
+      project_milestones: {
+        Row: {
+          id: string;
+          project_id: string;
+          title: string;
+          description: string | null;
+          status: MilestoneStatus;
+          target_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          project_id: string;
+          title: string;
+          description?: string | null;
+          status?: MilestoneStatus;
+          target_date?: string | null;
+        };
+        Update: {
+          title?: string;
+          description?: string | null;
+          status?: MilestoneStatus;
+          target_date?: string | null;
+          updated_at?: string;
+        };
+      };
+      project_analytics: {
+        Row: {
+          id: string;
+          project_id: string;
+          view_count: number;
+          unique_viewers: number;
+          last_viewed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          project_id: string;
+          view_count?: number;
+          unique_viewers?: number;
+          last_viewed_at?: string | null;
+        };
+        Update: {
+          view_count?: number;
+          unique_viewers?: number;
+          last_viewed_at?: string | null;
           updated_at?: string;
         };
       };
