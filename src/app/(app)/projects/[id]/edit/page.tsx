@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { EditProjectForm } from "@/app/projects/[id]/edit/edit-project-form";
+import { PublishProjectButton } from "@/components/projects/publish-project-button";
 
 const CATEGORIES = [
   { value: "open_source", label: "Open Source" },
@@ -68,9 +69,21 @@ export default async function EditProjectPage({
     { type: "peerlist" as const, url: (project.project_links ?? []).find((l: { type: string }) => l.type === "peerlist")?.url ?? "" },
   ];
 
+  const isDraft = project.status === "draft";
+
   return (
     <div className="flex-1 min-h-0">
       <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 lg:px-8">
+        {isDraft && (
+          <div className="mb-6 p-4 border border-warning/50 bg-warning/10 rounded flex flex-wrap items-center justify-between gap-3">
+            <p className="font-inconsolata text-sm text-foreground">
+              This project is a draft. It’s only visible to you. Publish it to make it visible to others.
+            </p>
+            <PublishProjectButton projectId={id} variant="default" size="sm">
+              Publish project
+            </PublishProjectButton>
+          </div>
+        )}
         <h1 className="font-geist-pixel text-3xl font-bold mb-2">
           Edit project
         </h1>
