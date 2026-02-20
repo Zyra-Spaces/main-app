@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { DashboardProjectCard } from "@/components/dashboard/dashboard-project-card";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -16,7 +17,6 @@ export default async function DashboardPage() {
     .select("id, name, category, status, cover_url, execution_type, founder_id, updated_at")
     .eq("founder_id", user.id)
     .is("deleted_at", null)
-    .neq("status", "draft")
     .order("updated_at", { ascending: false });
 
   const { data: memberRows } = await supabase
@@ -80,47 +80,22 @@ export default async function DashboardPage() {
                   </Link>
                 </p>
               ) : (
-                projects?.map((p) => {
-                  const isFounder = (p as { founder_id?: string }).founder_id === user.id;
-                  return (
-                    <Link key={p.id} href={`/projects/${p.id}`}>
-                      <Card className="overflow-hidden hover:border-muted-foreground/30 transition-colors rounded">
-                        <div className="flex gap-4 p-6">
-                          <div className="relative w-20 h-20 shrink-0 rounded overflow-hidden bg-muted">
-                            {p.cover_url ? (
-                              <Image
-                                src={p.cover_url}
-                                alt=""
-                                fill
-                                className="object-cover"
-                                sizes="80px"
-                                unoptimized
-                              />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center font-inconsolata text-muted-foreground text-xs">
-                                —
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h2 className="font-nunito font-semibold">{p.name}</h2>
-                            <div className="flex gap-2 mt-1 flex-wrap">
-                              <Badge variant={isFounder ? "default" : "outline"}>
-                                {isFounder ? "Founder" : "Contributor"}
-                              </Badge>
-                              <Badge variant="outline">{p.category}</Badge>
-                              <Badge variant="secondary">{p.status}</Badge>
-                              <Badge variant="secondary">{p.execution_type}</Badge>
-                            </div>
-                          </div>
-                          <span className="font-inconsolata text-sm text-muted-foreground self-center">
-                            View →
-                          </span>
-                        </div>
-                      </Card>
-                    </Link>
-                  );
-                })
+                projects?.map((p) => (
+                  <DashboardProjectCard
+                    key={p.id}
+                    project={{
+                      id: p.id,
+                      name: p.name,
+                      category: (p as { category?: string }).category ?? "",
+                      status: (p as { status?: string }).status ?? "",
+                      cover_url: p.cover_url,
+                      execution_type: (p as { execution_type?: string }).execution_type ?? "",
+                      founder_id: (p as { founder_id?: string }).founder_id ?? "",
+                      updated_at: (p as { updated_at?: string }).updated_at ?? "",
+                    }}
+                    currentUserId={user.id}
+                  />
+                ))
               )}
             </div>
           </TabsContent>

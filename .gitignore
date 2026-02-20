@@ -10,7 +10,6 @@ build
 dist
 
 # Environment
-.env
 .env*.local
 
 # Google Service Account (contains private key - never commit!)
@@ -29,7 +28,6 @@ yarn-error.log*
 
 # IDE
 .idea
-.vscode
 *.swp
 *.swo
 
@@ -41,3 +39,4 @@ Thumbs.db
 *.sql
 *.md
 
+config.bat
