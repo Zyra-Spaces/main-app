@@ -83,9 +83,13 @@
     --accent-foreground: 0 0% 100%;
     --destructive: 0 0% 50%;
     --destructive-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 4%;
     --border: 0 0% 9%;
     --input: 0 0% 9%;
-    --ring: 0 0% 100%;
+    --ring: 0 0% 63%;
     --radius: 0;
     /* Dotted glow (monotone dark) */
     --color-neutral-500: #525252;

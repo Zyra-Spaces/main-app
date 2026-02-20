@@ -1,18 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ButtonCornerWrapper } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { rateLimiters } from "@/lib/rate-limit";
-import { PREDEFINED_PROJECT_ROLES } from "@/lib/project-roles";
+import {
+  uploadBlobUrlsInBlocks,
+  blocksToDescriptionString,
+  blocksToPlainTextPreview,
+} from "@/lib/project-description-blocks";
+import type { Block } from "@blocknote/core";
+import { StepBasics } from "./steps/step-basics";
+import { StepImages } from "./steps/step-images";
+import { StepRoles } from "./steps/step-roles";
+import { StepLinks } from "./steps/step-links";
+import { StepReview } from "./steps/step-review";
+import { DynamicProjectDescriptionEditor } from "@/components/editor/dynamic-project-description-editor";
 
 type Role = { role: string; count: number };
 type LinkItem = { type: "github" | "linkedin" | "peerlist"; url: string };
+
+const STEPS = [
+  { id: 1, title: "Basics" },
+  { id: 2, title: "Images" },
+  { id: 3, title: "Description" },
+  { id: 4, title: "Roles" },
+  { id: 5, title: "Links" },
+  { id: 6, title: "Review" },
+] as const;
 
 export function CreateProjectForm({
   categories,
@@ -22,13 +40,14 @@ export function CreateProjectForm({
   executionTypes: readonly { value: string; label: string }[];
 }) {
   const router = useRouter();
+  const [currentStep, setCurrentStep] = useState(1);
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [descriptionBlocks, setDescriptionBlocks] = useState<Block[]>([]);
   const [category, setCategory] = useState("open_source");
   const [executionType, setExecutionType] = useState("idea");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [roles, setRoles] = useState<Role[]>([{ role: "", count: 1 }]); // role = predefined value or ""
+  const [roles, setRoles] = useState<Role[]>([{ role: "", count: 1 }]);
   const [links, setLinks] = useState<LinkItem[]>([
     { type: "github", url: "" },
     { type: "linkedin", url: "" },
@@ -36,8 +55,31 @@ export function CreateProjectForm({
   ]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [imageLimitWarning, setImageLimitWarning] = useState<string | null>(null);
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (coverFile) {
+      const url = URL.createObjectURL(coverFile);
+      setCoverPreview(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setCoverPreview(null);
+  }, [coverFile]);
+
+  useEffect(() => {
+    if (bannerFile) {
+      const url = URL.createObjectURL(bannerFile);
+      setBannerPreview(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setBannerPreview(null);
+  }, [bannerFile]);
 
   const addRole = () => setRoles((r) => [...r, { role: "", count: 1 }]);
   const removeRole = (i: number) => setRoles((r) => r.filter((_, idx) => idx !== i));
@@ -48,33 +90,82 @@ export function CreateProjectForm({
       )
     );
   };
-
   const updateLink = (type: "github" | "linkedin" | "peerlist", url: string) => {
     setLinks((l) =>
       l.map((item) => (item.type === type ? { ...item, url } : item))
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateStep = (step: number): boolean => {
+    setError(null);
+    if (step === 1) {
+      if (!name.trim()) {
+        setError("Project name is required.");
+        return false;
+      }
+      return true;
+    }
+    if (step === 3) {
+      const hasContent =
+        descriptionBlocks.length > 0 &&
+        descriptionBlocks.some(
+          (b) =>
+            (b.content?.length && (b.content as { text?: string }[]).some((c) => (c as { text?: string }).text?.trim())) ||
+            b.type === "image"
+        );
+      if (!hasContent) {
+        setError("Add at least some description content.");
+        return false;
+      }
+      return true;
+    }
+    if (step === 4) {
+      const validRoles = roles.filter((r) => r.role.trim() && r.count > 0);
+      if (validRoles.length === 0) {
+        setError("Add at least one contributor role.");
+        return false;
+      }
+      return true;
+    }
+    return true;
+  };
+
+  const goNext = () => {
+    if (!validateStep(currentStep)) return;
+    setCurrentStep((s) => Math.min(s + 1, 6));
+  };
+
+  const goBack = () => {
+    setError(null);
+    setCurrentStep((s) => Math.max(s - 1, 1));
+  };
+
+  const hasDescriptionContent =
+    descriptionBlocks.length > 0 &&
+    descriptionBlocks.some(
+      (b) =>
+        (b.content?.length && (b.content as { text?: string }[]).some((c) => (c as { text?: string }).text?.trim())) ||
+        b.type === "image"
+    );
+
+  const submit = async (asDraft: boolean) => {
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
+    setImageLimitWarning(null);
+    setWarningMessage(null);
 
-    if (!name.trim() || !description.trim()) {
-      setError("Name and description are required.");
-      setLoading(false);
-      return;
-    }
-
-    // Input validation: sanitize and limit length
     const sanitizedName = name.trim().slice(0, 100).replace(/<[^>]*>/g, "");
-    const sanitizedDescription = description.trim().slice(0, 2000).replace(/<[^>]*>/g, "");
-    if (!sanitizedName || !sanitizedDescription) {
-      setError("Name and description cannot be empty.");
+    if (!sanitizedName) {
+      setError("Project name is required.");
       setLoading(false);
       return;
     }
-
+    if (!asDraft && !hasDescriptionContent) {
+      setError("Description is required to publish.");
+      setLoading(false);
+      return;
+    }
     const validRoles = roles.filter((r) => r.role.trim() && r.count > 0);
     if (validRoles.length === 0) {
       setError("Add at least one contributor role.");
@@ -90,23 +181,26 @@ export function CreateProjectForm({
       return;
     }
 
-    // Rate limiting: 3/hour per user
-    const identifier = `project-creation:${user.id}`;
-    const limitResult = rateLimiters.projectCreation(identifier);
-    if (!limitResult.success) {
-      setError("Too many projects created. Please wait before creating another.");
-      setLoading(false);
-      return;
+    if (!asDraft) {
+      const identifier = `project-creation:${user.id}`;
+      const limitResult = rateLimiters.projectCreation(identifier);
+      if (!limitResult.success) {
+        setWarningMessage("Too many projects created. Please wait before creating another.");
+        setLoading(false);
+        return;
+      }
     }
 
+    const status = asDraft ? "draft" : "open";
+    const placeholderDescription = "[]";
     const { data: project, error: insertError } = await supabase
       .from("projects")
       .insert({
         founder_id: user.id,
         name: sanitizedName,
-        description: sanitizedDescription,
+        description: placeholderDescription,
         category,
-        status: "open",
+        status,
         execution_type: executionType,
         start_date: startDate || null,
         end_date: endDate || null,
@@ -120,9 +214,37 @@ export function CreateProjectForm({
       return;
     }
 
+    let finalBlocks = descriptionBlocks;
+    if (descriptionBlocks.length > 0) {
+      try {
+        finalBlocks = await uploadBlobUrlsInBlocks(
+          supabase,
+          project.id,
+          descriptionBlocks
+        );
+      } catch (e) {
+        const message =
+          e instanceof Error ? e.message : "Failed to upload description images.";
+        setError(
+          message.includes("Bucket not found") || message.includes("not found")
+            ? "Description images bucket is missing. Run the Supabase migration (00003_project_description_images_bucket.sql) or create the bucket 'project-description-images' in the Supabase dashboard."
+            : `Failed to upload description images: ${message}`
+        );
+        setLoading(false);
+        return;
+      }
+    }
+    const descriptionJson = blocksToDescriptionString(finalBlocks);
+    await supabase
+      .from("projects")
+      .update({
+        description: descriptionJson,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", project.id);
+
     let coverUrl: string | null = null;
     let bannerUrl: string | null = null;
-
     if (coverFile) {
       const ext = coverFile.name.split(".").pop() || "jpg";
       const path = `${project.id}/cover.${ext}`;
@@ -136,7 +258,6 @@ export function CreateProjectForm({
         coverUrl = urlData.publicUrl;
       }
     }
-
     if (bannerFile) {
       const ext = bannerFile.name.split(".").pop() || "jpg";
       const path = `${project.id}/banner.${ext}`;
@@ -150,7 +271,6 @@ export function CreateProjectForm({
         bannerUrl = urlData.publicUrl;
       }
     }
-
     if (coverUrl || bannerUrl) {
       await supabase
         .from("projects")
@@ -181,7 +301,7 @@ export function CreateProjectForm({
       );
     }
 
-    if (executionType === "launched") {
+    if (executionType === "launched" && !asDraft) {
       await supabase.from("products").insert({
         project_id: project.id,
         name: name.trim(),
@@ -190,196 +310,179 @@ export function CreateProjectForm({
       });
     }
 
-    router.push(`/projects/${project.id}`);
-    router.refresh();
     setLoading(false);
+    if (asDraft) {
+      setSuccessMessage("Draft saved.");
+      router.push(`/projects/${project.id}/edit`);
+      router.refresh();
+    } else {
+      setSuccessMessage("Project published.");
+      router.push(`/projects/${project.id}`);
+      router.refresh();
+    }
   };
 
+  const categoryLabel =
+    categories.find((c) => c.value === category)?.label ?? category;
+  const executionTypeLabel =
+    executionTypes.find((t) => t.value === executionType)?.label ?? executionType;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <Card>
-        <CardHeader>
-          <h2 className="font-nunito text-lg font-semibold">Basic info</h2>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="font-inconsolata text-sm mb-2 block">Name</label>
-            <Input
-              placeholder="Project name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="font-inconsolata text-sm mb-2 block">Description</label>
-            <Textarea
-              placeholder="Describe your project..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={5}
-            />
-          </div>
-          <div>
-            <label className="font-inconsolata text-sm mb-2 block">Category</label>
-            <select
-              className="flex h-12 w-full border-2 border-input bg-background px-4 font-inconsolata"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              {categories.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="font-inconsolata text-sm mb-2 block">Execution type</label>
-            <select
-              className="flex h-12 w-full border-2 border-input bg-background px-4 font-inconsolata"
-              value={executionType}
-              onChange={(e) => setExecutionType(e.target.value)}
-            >
-              {executionTypes.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="font-inconsolata text-sm mb-2 block">Start date</label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="font-inconsolata text-sm mb-2 block">End date</label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 flex-wrap">
+        {STEPS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => setCurrentStep(s.id)}
+            className={`font-inconsolata text-sm px-2 py-1 transition-colors ${
+              currentStep === s.id
+                ? "text-foreground border-b-2 border-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {s.title}
+          </button>
+        ))}
+      </div>
 
       <Card>
         <CardHeader>
-          <h2 className="font-nunito text-lg font-semibold">Images</h2>
-          <p className="font-inconsolata text-sm text-muted-foreground">
-            Cover (boxed) and banner. Project images use rounded corners, distinct from user avatars.
-          </p>
+          <h2 className="font-nunito text-lg font-semibold">
+            {STEPS[currentStep - 1].title}
+          </h2>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="font-inconsolata text-sm mb-2 block">Cover image</label>
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)}
+        <CardContent>
+          {currentStep === 1 && (
+            <StepBasics
+              name={name}
+              setName={setName}
+              category={category}
+              setCategory={setCategory}
+              executionType={executionType}
+              setExecutionType={setExecutionType}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              categories={categories}
+              executionTypes={executionTypes}
             />
-          </div>
-          <div>
-            <label className="font-inconsolata text-sm mb-2 block">Banner image</label>
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)}
+          )}
+          {currentStep === 2 && (
+            <StepImages
+              coverFile={coverFile}
+              setCoverFile={setCoverFile}
+              bannerFile={bannerFile}
+              setBannerFile={setBannerFile}
+              coverPreview={coverPreview}
+              bannerPreview={bannerPreview}
             />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <h2 className="font-nunito text-lg font-semibold">Contributors needed</h2>
-          <p className="font-inconsolata text-sm text-muted-foreground">
-            Select a role and the number of spots needed. Keeps tracking consistent.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {roles.map((r, i) => (
-            <div key={i} className="flex gap-3 items-end">
-              <div className="flex-1">
-                <label className="font-inconsolata text-sm mb-1 block">Role</label>
-                <select
-                  className="flex h-12 w-full border-2 border-input bg-background px-4 font-inconsolata"
-                  value={r.role}
-                  onChange={(e) => updateRole(i, "role", e.target.value)}
-                >
-                  <option value="">Select role</option>
-                  {PREDEFINED_PROJECT_ROLES.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="w-28">
-                <label className="font-inconsolata text-sm mb-1 block">Spots</label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={99}
-                  value={r.count}
-                  onChange={(e) => updateRole(i, "count", parseInt(e.target.value) || 1)}
+          )}
+          {currentStep === 3 && (
+            <div className="space-y-4">
+              <p className="font-inconsolata text-sm text-muted-foreground">
+                Use the editor below. Type / for slash commands. You can add
+                headings, lists, images (paste or /image), and links. Max 5
+                images per project (cover + banner + 3 in description).
+              </p>
+              <div className="min-h-[280px] border border-input rounded-none">
+                <DynamicProjectDescriptionEditor
+                  initialContent={
+                    descriptionBlocks.length > 0 ? descriptionBlocks : undefined
+                  }
+                  onChange={setDescriptionBlocks}
+                  projectId={null}
+                  coverCount={coverFile ? 1 : 0}
+                  bannerCount={bannerFile ? 1 : 0}
+                  onImageLimitReached={() =>
+                    setImageLimitWarning("Maximum 5 images per project.")
+                  }
+                  className="[&_.bn-editor]:min-h-[260px]"
                 />
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => removeRole(i)}
-                disabled={roles.length === 1}
-              >
-                ×
-              </Button>
+              {imageLimitWarning && (
+                <p className="font-inconsolata text-sm text-warning">
+                  {imageLimitWarning}
+                </p>
+              )}
             </div>
-          ))}
-          <Button type="button" variant="outline" onClick={addRole}>
-            Add role
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <h2 className="font-nunito text-lg font-semibold">Links</h2>
-          <p className="font-inconsolata text-sm text-muted-foreground">
-            GitHub, LinkedIn, Peerlist
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {links.map((l) => (
-            <div key={l.type}>
-              <label className="font-inconsolata text-sm mb-2 block capitalize">
-                {l.type} URL
-              </label>
-              <Input
-                type="url"
-                placeholder={`https://${l.type}.com/...`}
-                value={l.url}
-                onChange={(e) => updateLink(l.type, e.target.value)}
-              />
-            </div>
-          ))}
+          )}
+          {currentStep === 4 && (
+            <StepRoles
+              roles={roles}
+              addRole={addRole}
+              removeRole={removeRole}
+              updateRole={updateRole}
+            />
+          )}
+          {currentStep === 5 && (
+            <StepLinks links={links} updateLink={updateLink} />
+          )}
+          {currentStep === 6 && (
+            <StepReview
+              name={name}
+              categoryLabel={categoryLabel}
+              executionTypeLabel={executionTypeLabel}
+              startDate={startDate}
+              endDate={endDate}
+              description={
+                descriptionBlocks.length
+                  ? blocksToPlainTextPreview(descriptionBlocks)
+                  : ""
+              }
+              roles={roles}
+              links={links}
+              hasCover={!!coverFile}
+              hasBanner={!!bannerFile}
+            />
+          )}
         </CardContent>
       </Card>
 
       {error && (
         <p className="font-inconsolata text-sm text-destructive">{error}</p>
       )}
+      {warningMessage && (
+        <p className="font-inconsolata text-sm text-warning">{warningMessage}</p>
+      )}
+      {successMessage && (
+        <p className="font-inconsolata text-sm text-success">{successMessage}</p>
+      )}
 
-      <ButtonCornerWrapper variant="default">
-        <Button type="submit" disabled={loading}>
-          {loading ? "Creating..." : "Create project"}
-        </Button>
-      </ButtonCornerWrapper>
-    </form>
+      <div className="flex items-center gap-3">
+        {currentStep > 1 && (
+          <Button type="button" variant="outline" onClick={goBack}>
+            Back
+          </Button>
+        )}
+        {currentStep < 6 ? (
+          <Button type="button" onClick={goNext}>
+            Next
+          </Button>
+        ) : (
+          <>
+            <ButtonCornerWrapper variant="default">
+              <Button
+                type="button"
+                disabled={loading}
+                onClick={() => submit(true)}
+              >
+                {loading ? "Saving..." : "Save as draft"}
+              </Button>
+            </ButtonCornerWrapper>
+            <ButtonCornerWrapper variant="default">
+              <Button
+                type="button"
+                disabled={loading}
+                onClick={() => submit(false)}
+              >
+                {loading ? "Publishing..." : "Publish"}
+              </Button>
+            </ButtonCornerWrapper>
+          </>
+        )}
+      </div>
+    </div>
   );
 }

@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { ProjectDetailClient } from "@/app/projects/[id]/project-detail-client";
 import { MilestonesSection } from "@/components/projects/milestones-section";
 import { getRoleLabel } from "@/lib/project-roles";
+import { descriptionBlocksToHtml } from "@/lib/project-description-html";
+import { ProjectDescriptionView } from "@/components/projects/project-description-view";
 
 export default async function ProjectDetailPage({
   params,
@@ -32,6 +34,8 @@ export default async function ProjectDetailPage({
     .single();
 
   if (!project || project.status === "draft") notFound();
+
+  const descriptionHtml = await descriptionBlocksToHtml(project.description);
 
   (async () => {
     try {
@@ -220,10 +224,17 @@ export default async function ProjectDetailPage({
           </div>
         </div>
 
-        <div className="mt-8 prose prose-invert max-w-none">
-          <p className="font-inconsolata text-muted-foreground whitespace-pre-wrap">
-            {projectWithProfiles.description}
-          </p>
+        <div className="mt-8 prose prose-invert max-w-none font-inconsolata text-muted-foreground">
+          {descriptionHtml ? (
+            <ProjectDescriptionView
+              html={descriptionHtml}
+              className="project-description-content [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded"
+            />
+          ) : (
+            <p className="whitespace-pre-wrap">
+              {projectWithProfiles.description}
+            </p>
+          )}
         </div>
 
         {(projectWithProfiles.project_links?.length ?? 0) > 0 && (

@@ -187,7 +187,7 @@ export function ProfileEditForm({
             </Button>
           </ButtonCornerWrapper>
           {saved && (
-            <p className="font-inconsolata text-sm text-muted-foreground">
+            <p className="font-inconsolata text-sm text-success">
               Profile saved.
             </p>
           )}

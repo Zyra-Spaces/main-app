@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -8,9 +8,17 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonCornerWrapper } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 import { PREDEFINED_PROJECT_ROLES } from "@/lib/project-roles";
+import {
+  parseDescriptionToBlocks,
+  legacyPlainTextToBlocks,
+  blocksToDescriptionString,
+  uploadBlobUrlsInBlocks,
+} from "@/lib/project-description-blocks";
+import type { Block } from "@blocknote/core";
+import { DynamicProjectDescriptionEditor } from "@/components/editor/dynamic-project-description-editor";
 
 type Role = { role: string; count: number };
 type LinkItem = { type: "github" | "linkedin" | "peerlist"; url: string };
@@ -44,7 +52,6 @@ export function EditProjectForm({
 }) {
   const router = useRouter();
   const [name, setName] = useState(initial.name);
-  const [description, setDescription] = useState(initial.description);
   const [category, setCategory] = useState(initial.category);
   const [status, setStatus] = useState(initial.status);
   const [executionType, setExecutionType] = useState(initial.executionType);
@@ -56,6 +63,15 @@ export function EditProjectForm({
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [imageLimitWarning, setImageLimitWarning] = useState<string | null>(null);
+
+  const initialBlocks = useMemo(() => {
+    const parsed = parseDescriptionToBlocks(initial.description);
+    return parsed ?? legacyPlainTextToBlocks(initial.description || "");
+  }, [initial.description]);
+
+  const [descriptionBlocks, setDescriptionBlocks] = useState<Block[]>(initialBlocks);
 
   const addRole = () => setRoles((r) => [...r, { role: "", count: 1 }]);
   const removeRole = (i: number) => setRoles((r) => r.filter((_, idx) => idx !== i));
@@ -71,24 +87,33 @@ export function EditProjectForm({
     );
   };
 
+  const hasDescriptionContent =
+    descriptionBlocks.length > 0 &&
+    descriptionBlocks.some(
+      (b) =>
+        (b.content?.length && (b.content as { text?: string }[]).some((c) => (c as { text?: string }).text?.trim())) ||
+        b.type === "image"
+    );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSaved(false);
+    setImageLimitWarning(null);
 
-    if (!name.trim() || !description.trim()) {
-      setError("Name and description are required.");
+    if (!name.trim()) {
+      setError("Name is required.");
+      setLoading(false);
+      return;
+    }
+    if (!hasDescriptionContent) {
+      setError("Description is required.");
       setLoading(false);
       return;
     }
 
     const sanitizedName = name.trim().slice(0, 100).replace(/<[^>]*>/g, "");
-    const sanitizedDescription = description.trim().slice(0, 2000).replace(/<[^>]*>/g, "");
-    if (!sanitizedName || !sanitizedDescription) {
-      setError("Name and description cannot be empty.");
-      setLoading(false);
-      return;
-    }
 
     const validRoles = roles.filter((r) => r.role.trim() && r.count > 0);
     if (validRoles.length === 0) {
@@ -144,11 +169,27 @@ export function EditProjectForm({
       bannerUrl = urlData.publicUrl;
     }
 
+    let finalBlocks = descriptionBlocks;
+    try {
+      finalBlocks = await uploadBlobUrlsInBlocks(supabase, projectId, descriptionBlocks);
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "Failed to upload description images.";
+      setError(
+        message.includes("Bucket not found") || message.includes("not found")
+          ? "Description images bucket is missing. Run the Supabase migration (00003_project_description_images_bucket.sql) or create the bucket 'project-description-images' in the Supabase dashboard."
+          : `Failed to upload description images: ${message}`
+      );
+      setLoading(false);
+      return;
+    }
+    const descriptionJson = blocksToDescriptionString(finalBlocks);
+
     const { error: updateError } = await supabase
       .from("projects")
       .update({
         name: sanitizedName,
-        description: sanitizedDescription,
+        description: descriptionJson,
         category,
         status,
         execution_type: executionType,
@@ -214,9 +255,9 @@ export function EditProjectForm({
       }
     }
 
-    router.push(`/projects/${projectId}`);
-    router.refresh();
+    setSaved(true);
     setLoading(false);
+    router.refresh();
   };
 
   return (
@@ -236,54 +277,48 @@ export function EditProjectForm({
           </div>
           <div>
             <label className="font-inconsolata text-sm mb-2 block">Description</label>
-            <Textarea
-              placeholder="Describe your project..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={5}
-            />
+            <div className="min-h-[200px] border border-input rounded-none">
+              <DynamicProjectDescriptionEditor
+                initialContent={descriptionBlocks.length > 0 ? descriptionBlocks : undefined}
+                onChange={setDescriptionBlocks}
+                projectId={projectId}
+                coverCount={coverFile || initial.coverUrl ? 1 : 0}
+                bannerCount={bannerFile || initial.bannerUrl ? 1 : 0}
+                onImageLimitReached={() =>
+                  setImageLimitWarning("Maximum 5 images per project.")
+                }
+                className="[&_.bn-editor]:min-h-[180px]"
+              />
+            </div>
+            {imageLimitWarning && (
+              <p className="font-inconsolata text-sm text-warning mt-1">
+                {imageLimitWarning}
+              </p>
+            )}
           </div>
           <div>
             <label className="font-inconsolata text-sm mb-2 block">Category</label>
-            <select
-              className="flex h-12 w-full border-2 border-input bg-background px-4 font-inconsolata"
+            <Select
+              options={categories.map((c) => ({ value: c.value, label: c.label }))}
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-            >
-              {categories.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <div>
             <label className="font-inconsolata text-sm mb-2 block">Status</label>
-            <select
-              className="flex h-12 w-full border-2 border-input bg-background px-4 font-inconsolata"
+            <Select
+              options={statusOptions.map((s) => ({ value: s.value, label: s.label }))}
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-            >
-              {statusOptions.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <div>
             <label className="font-inconsolata text-sm mb-2 block">Execution type</label>
-            <select
-              className="flex h-12 w-full border-2 border-input bg-background px-4 font-inconsolata"
+            <Select
+              options={executionTypes.map((t) => ({ value: t.value, label: t.label }))}
               value={executionType}
               onChange={(e) => setExecutionType(e.target.value)}
-            >
-              {executionTypes.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -355,18 +390,12 @@ export function EditProjectForm({
               <div key={i} className="flex gap-3 items-end">
                 <div className="flex-1">
                   <label className="font-inconsolata text-sm mb-1 block">Role</label>
-                  <select
-                    className="flex h-12 w-full border-2 border-input bg-background px-4 font-inconsolata"
+                  <Select
+                    placeholder="Select role"
+                    options={roleOptions.map((opt) => ({ value: opt.value, label: opt.label }))}
                     value={r.role}
                     onChange={(e) => updateRole(i, "role", e.target.value)}
-                  >
-                    <option value="">Select role</option>
-                    {roleOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div className="w-28">
                   <label className="font-inconsolata text-sm mb-1 block">Spots</label>
@@ -419,6 +448,9 @@ export function EditProjectForm({
 
       {error && (
         <p className="font-inconsolata text-sm text-destructive">{error}</p>
+      )}
+      {saved && (
+        <p className="font-inconsolata text-sm text-success">Project saved.</p>
       )}
 
       <div className="flex gap-4">
