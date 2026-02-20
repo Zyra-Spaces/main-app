@@ -13,12 +13,47 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?redirect=/dashboard");
 
-  const { data: projects } = await supabase
+  // Projects where user is founder
+  const { data: foundedProjects } = await supabase
     .from("projects")
-    .select("id, name, category, status, cover_url, execution_type")
+    .select("id, name, category, status, cover_url, execution_type, founder_id, updated_at")
     .eq("founder_id", user.id)
+    .is("deleted_at", null)
     .neq("status", "draft")
     .order("updated_at", { ascending: false });
+
+  // Projects where user is an approved contributor (not founder)
+  const { data: memberRows } = await supabase
+    .from("project_members")
+    .select("project_id")
+    .eq("user_id", user.id)
+    .eq("status", "approved");
+  const contributedProjectIds = (memberRows ?? [])
+    .map((r) => r.project_id)
+    .filter((id) => !(foundedProjects ?? []).some((p) => p.id === id));
+
+  const { data: contributedProjects } =
+    contributedProjectIds.length > 0
+      ? await supabase
+          .from("projects")
+          .select("id, name, category, status, cover_url, execution_type, founder_id, updated_at")
+          .in("id", contributedProjectIds)
+          .is("deleted_at", null)
+          .neq("status", "draft")
+          .order("updated_at", { ascending: false })
+      : { data: [] };
+
+  // Merge: founded + contributed, sorted by updated_at (both visible in "My Projects")
+  const projects = [
+    ...(foundedProjects ?? []),
+    ...(contributedProjects ?? []),
+  ].sort(
+    (a, b) =>
+      new Date((b as { updated_at?: string }).updated_at ?? 0).getTime() -
+      new Date((a as { updated_at?: string }).updated_at ?? 0).getTime()
+  );
+
+  const projectIds = projects.map((p) => p.id);
 
   const { data: products } = await supabase
     .from("products")
@@ -29,10 +64,7 @@ export default async function DashboardPage() {
       project_id,
       projects(id, name, cover_url)
     `)
-    .in(
-      "project_id",
-      (projects ?? []).map((p) => p.id)
-    );
+    .in("project_id", projectIds);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden">
@@ -55,7 +87,9 @@ export default async function DashboardPage() {
                     </Link>
                   </p>
                 ) : (
-                  projects?.map((p) => (
+                  projects?.map((p) => {
+                    const isFounder = (p as { founder_id?: string }).founder_id === user.id;
+                    return (
                     <Link key={p.id} href={`/projects/${p.id}`}>
                       <Card className="overflow-hidden hover:border-muted-foreground/30 transition-colors">
                         <div className="flex gap-4 p-6">
@@ -77,7 +111,10 @@ export default async function DashboardPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h2 className="font-nunito font-semibold">{p.name}</h2>
-                            <div className="flex gap-2 mt-1">
+                            <div className="flex gap-2 mt-1 flex-wrap">
+                              <Badge variant={isFounder ? "default" : "outline"}>
+                                {isFounder ? "Founder" : "Contributor"}
+                              </Badge>
                               <Badge variant="outline">{p.category}</Badge>
                               <Badge variant="secondary">{p.status}</Badge>
                               <Badge variant="secondary">{p.execution_type}</Badge>
@@ -89,7 +126,8 @@ export default async function DashboardPage() {
                         </div>
                       </Card>
                     </Link>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </TabsContent>
