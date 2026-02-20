@@ -1,8 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
-import { EditProjectForm } from "./edit-project-form";
+import { EditProjectForm } from "@/app/projects/[id]/edit/edit-project-form";
 
 const CATEGORIES = [
   { value: "open_source", label: "Open Source" },
@@ -71,38 +69,34 @@ export default async function EditProjectPage({
   ];
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden">
-      <Navbar />
-      <main className="pt-24 pb-20">
-        <div className="mx-auto max-w-2xl px-6 sm:px-12 lg:px-[140px]">
-          <h1 className="font-geist-pixel text-3xl font-bold mb-2">
-            Edit project
-          </h1>
-          <p className="font-inconsolata text-muted-foreground mb-8">
-            Update your project details and roles.
-          </p>
-          <EditProjectForm
-            projectId={id}
-            initial={{
-              name: project.name,
-              description: project.description,
-              category: project.category,
-              status: project.status,
-              executionType: project.execution_type,
-              startDate: project.start_date ?? "",
-              endDate: project.end_date ?? "",
-              coverUrl: project.cover_url,
-              bannerUrl: project.banner_url,
-              roles: roles.length > 0 ? roles : [{ role: "", count: 1 }],
-              links,
-            }}
-            categories={CATEGORIES}
-            executionTypes={EXECUTION_TYPES}
-            statusOptions={STATUS_OPTIONS}
-          />
-        </div>
-      </main>
-      <Footer />
+    <div className="flex-1 min-h-0">
+      <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 lg:px-8">
+        <h1 className="font-geist-pixel text-3xl font-bold mb-2">
+          Edit project
+        </h1>
+        <p className="font-inconsolata text-muted-foreground mb-8">
+          Update your project details and roles.
+        </p>
+        <EditProjectForm
+          projectId={id}
+          initial={{
+            name: project.name,
+            description: project.description,
+            category: project.category,
+            status: project.status,
+            executionType: project.execution_type,
+            startDate: project.start_date ?? "",
+            endDate: project.end_date ?? "",
+            coverUrl: project.cover_url,
+            bannerUrl: project.banner_url,
+            roles: roles.length > 0 ? roles : [{ role: "", count: 1 }],
+            links,
+          }}
+          categories={CATEGORIES}
+          executionTypes={EXECUTION_TYPES}
+          statusOptions={STATUS_OPTIONS}
+        />
+      </div>
     </div>
   );
 }

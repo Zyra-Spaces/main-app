@@ -29,6 +29,7 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   const needsAuth =
+    pathname === "/feed" ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/onboarding") ||
     pathname === "/profile" ||
@@ -43,6 +44,12 @@ export async function updateSession(request: NextRequest) {
   }
 
   if ((pathname === "/login" || pathname === "/register") && user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/feed";
+    return NextResponse.redirect(url);
+  }
+
+  if (pathname === "/" && user) {
     const url = request.nextUrl.clone();
     url.pathname = "/feed";
     return NextResponse.redirect(url);

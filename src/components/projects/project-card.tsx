@@ -85,7 +85,7 @@ export function ProjectCard({
               src={project.cover_url}
               alt=""
               fill
-              className="object-cover rounded-t-lg"
+              className="object-cover rounded-t"
               sizes="(max-width: 768px) 100vw, 896px"
               quality={80}
             />

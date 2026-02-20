@@ -1,8 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
-import { CreateProjectForm } from "./create-project-form";
+import { CreateProjectForm } from "@/app/projects/new/create-project-form";
 
 const CATEGORIES = [
   { value: "open_source", label: "Open Source" },
@@ -32,23 +30,19 @@ export default async function NewProjectPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden">
-      <Navbar />
-      <main className="pt-24 pb-20">
-        <div className="mx-auto max-w-2xl px-6 sm:px-12 lg:px-[140px]">
-          <h1 className="font-geist-pixel text-3xl font-bold mb-2">
-            Start a project
-          </h1>
-          <p className="font-inconsolata text-muted-foreground mb-8">
-            Add your project details and the roles you need.
-          </p>
-          <CreateProjectForm
-            categories={CATEGORIES}
-            executionTypes={EXECUTION_TYPES}
-          />
-        </div>
-      </main>
-      <Footer />
+    <div className="flex-1 min-h-0">
+      <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 lg:px-8">
+        <h1 className="font-geist-pixel text-3xl font-bold mb-2">
+          Start a project
+        </h1>
+        <p className="font-inconsolata text-muted-foreground mb-8">
+          Add your project details and the roles you need.
+        </p>
+        <CreateProjectForm
+          categories={CATEGORIES}
+          executionTypes={EXECUTION_TYPES}
+        />
+      </div>
     </div>
   );
 }

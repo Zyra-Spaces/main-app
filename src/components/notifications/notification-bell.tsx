@@ -144,7 +144,7 @@ export function NotificationBell() {
                   {notifications.map((n) => (
                     <div
                       key={n.id}
-                      className={`p-3 rounded-lg border ${
+                      className={`p-3 rounded border ${
                         !n.read_status ? "bg-muted" : ""
                       }`}
                       onClick={() => {

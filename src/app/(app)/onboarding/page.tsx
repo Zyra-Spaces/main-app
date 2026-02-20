@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { OnboardingForm } from "./onboarding-form";
+import { OnboardingForm } from "@/app/onboarding/onboarding-form";
 
 export default async function OnboardingPage() {
   const supabase = await createClient();
@@ -24,7 +24,7 @@ export default async function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen py-24 px-6">
+    <div className="flex-1 min-h-0 py-12 px-4">
       <div className="mx-auto max-w-2xl">
         <h1 className="font-geist-pixel text-3xl font-bold mb-2">
           Complete your profile

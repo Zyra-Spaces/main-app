@@ -46,7 +46,7 @@ export function FeedClient({
   const [search, setSearch] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
 
-  // Server-side search when query is 2+ characters
+  // Server-side search when query is 2+ characters (shorter debounce, non-blocking: keep previous list while loading)
   useEffect(() => {
     const timeoutId = setTimeout(async () => {
       if (search.trim().length >= 2) {
@@ -55,7 +55,6 @@ export function FeedClient({
           const res = await fetch(`/api/projects/search?q=${encodeURIComponent(search.trim())}`);
           const data = await res.json();
           if (data.projects) {
-            // Fetch upvote data for searched projects
             const projectIds = data.projects.map((p: ProjectWithMeta) => p.id);
             const upvotesRes = await fetch("/api/upvotes").catch(() => null);
             const upvotesData = upvotesRes ? await upvotesRes.json().catch(() => ({ data: [] })) : { data: [] };
@@ -86,21 +85,18 @@ export function FeedClient({
           setSearchLoading(false);
         }
       } else if (search.trim().length === 0) {
-        // Reset to initial projects when search is cleared
         setProjects(initialProjects);
       }
-    }, 300); // Debounce 300ms
+    }, 180);
 
     return () => clearTimeout(timeoutId);
   }, [search, initialProjects, userId]);
 
   const filtered = useMemo(() => {
     let list = [...projects];
-    // Client-side filtering for tabs only (search is handled server-side)
     if (tab === "open") {
       list = list.filter((p) => p.status === "open");
     } else if (tab === "trending") {
-      // Sort by upvotes + view count (from analytics) + recency
       list = [...list].sort((a, b) => {
         const aViews = (a as { project_analytics?: { view_count?: number }[] }).project_analytics?.[0]?.view_count ?? 0;
         const bViews = (b as { project_analytics?: { view_count?: number }[] }).project_analytics?.[0]?.view_count ?? 0;
@@ -147,26 +143,27 @@ export function FeedClient({
 
   return (
     <Tabs value={tab} onValueChange={setTab}>
-      <TabsList className="flex flex-wrap gap-1 mb-6">
-        {TABS.map((t) => (
-          <TabsTrigger key={t.value} value={t.value}>
-            {t.label}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-      <div className="mb-6">
-        <Input
-          placeholder="Search projects... (server-side fuzzy search)"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm font-inconsolata"
-          disabled={searchLoading}
-        />
-        {searchLoading && (
-          <p className="font-inconsolata text-xs text-muted-foreground mt-1">
-            Searching...
-          </p>
-        )}
+      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border -mx-4 px-4 py-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 flex flex-wrap items-center justify-between gap-3">
+        <TabsList className="flex flex-wrap gap-1 rounded">
+          {TABS.map((t) => (
+            <TabsTrigger key={t.value} value={t.value}>
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="Search projects..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-48 sm:w-64 font-inconsolata rounded"
+          />
+          {searchLoading && (
+            <span className="font-inconsolata text-xs text-muted-foreground shrink-0" aria-live="polite">
+              Searching...
+            </span>
+          )}
+        </div>
       </div>
       {TABS.map((t) => (
         <TabsContent key={t.value} value={t.value} className="mt-0">

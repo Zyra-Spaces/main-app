@@ -132,7 +132,7 @@ export function MilestonesSection({
             {milestones.map((m) => (
               <div
                 key={m.id}
-                className="flex items-start justify-between gap-4 p-4 border border-border rounded-lg"
+                className="flex items-start justify-between gap-4 p-4 border border-border rounded"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">

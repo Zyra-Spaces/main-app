@@ -9,6 +9,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      borderRadius: {
+        DEFAULT: "var(--radius)",
+        full: "9999px",
+      },
       fontFamily: {
         sans: ["var(--font-nunito-sans)", "sans-serif"],
         nunito: ["var(--font-nunito-sans)", "sans-serif"],

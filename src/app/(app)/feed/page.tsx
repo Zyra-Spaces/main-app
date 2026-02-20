@@ -1,7 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
 import { FeedClient } from "./feed-client";
 
 export default async function FeedPage() {
@@ -74,19 +72,14 @@ export default async function FeedPage() {
   }));
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden">
-      <Navbar />
-      <main className="pt-24 pb-20">
-        <div className="mx-auto max-w-4xl px-6 sm:px-12 lg:px-[140px]">
-          <h1 className="font-geist-pixel text-3xl font-bold mb-8">Feed</h1>
-          <FeedClient
-            initialProjects={projectsWithMeta}
-            userId={user.id}
-            userQualifications={qualifications?.map((q) => q.skill) ?? []}
-          />
-        </div>
-      </main>
-      <Footer />
+    <div className="flex-1 min-h-0">
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8">
+        <FeedClient
+          initialProjects={projectsWithMeta}
+          userId={user.id}
+          userQualifications={qualifications?.map((q) => q.skill) ?? []}
+        />
+      </div>
     </div>
   );
 }
