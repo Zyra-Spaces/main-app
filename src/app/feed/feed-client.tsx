@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { ProjectCard } from "@/components/projects/project-card";
+import { getRoleSearchKeywords } from "@/lib/project-roles";
 
 type ProjectWithMeta = {
   id: string;
@@ -115,11 +116,13 @@ export function FeedClient({
       list = list.filter((p) => {
         const roles =
           (p as { contributor_roles?: { role: string }[] }).contributor_roles ?? [];
-        const roleSkills = roles.map((r) => r.role.toLowerCase());
-        return userQualifications.some(
+        const roleKeywords = roles.flatMap((r) =>
+          getRoleSearchKeywords(r.role).map((k) => k.toLowerCase())
+        );
+        const qLower = userQualifications.map((q) => q.toLowerCase());
+        return qLower.some(
           (q) =>
-            roleSkills.some((r) => r.includes(q.toLowerCase())) ||
-            roleSkills.some((r) => q.toLowerCase().includes(r))
+            roleKeywords.some((r) => r.includes(q) || q.includes(r))
         );
       });
     }

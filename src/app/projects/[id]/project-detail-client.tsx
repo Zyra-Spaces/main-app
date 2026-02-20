@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { rateLimiters } from "@/lib/rate-limit";
 import { PresenceIndicator } from "@/components/projects/presence-indicator";
+import { getRoleLabel } from "@/lib/project-roles";
 
 type ContributorRole = { role: string; count: number };
 type ContributorRequest = {
@@ -229,7 +230,7 @@ export function ProjectDetailClient({
                 >
                   <div>
                     <span className="font-inconsolata">{r.profiles?.full_name ?? "User"}</span>
-                    <span className="font-inconsolata text-muted-foreground ml-2">({r.role})</span>
+                    <span className="font-inconsolata text-muted-foreground ml-2">({getRoleLabel(r.role)})</span>
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" variant="default" onClick={() => handleApproveRequest(r.id, r.user_id, r.role)}>
@@ -260,7 +261,7 @@ export function ProjectDetailClient({
                 <option value="">Select role</option>
                 {contributorRoles.map((r) => (
                   <option key={r.role} value={r.role}>
-                    {r.role}
+                    {getRoleLabel(r.role)}
                   </option>
                 ))}
               </select>

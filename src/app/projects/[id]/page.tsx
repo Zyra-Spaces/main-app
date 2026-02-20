@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ProjectDetailClient } from "./project-detail-client";
 import { MilestonesSection } from "@/components/projects/milestones-section";
+import { getRoleLabel } from "@/lib/project-roles";
 
 export default async function ProjectDetailPage({
   params,
@@ -258,7 +259,7 @@ export default async function ProjectDetailPage({
             <div className="flex flex-wrap gap-2">
               {(projectWithProfiles.contributor_roles ?? []).map((r: { role: string; count: number }) => (
                 <Badge key={r.role} variant="secondary">
-                  {r.count} {r.role}
+                  {r.count} {getRoleLabel(r.role)}
                 </Badge>
               ))}
             </div>

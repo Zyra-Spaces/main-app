@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { rateLimiters } from "@/lib/rate-limit";
+import { PREDEFINED_PROJECT_ROLES } from "@/lib/project-roles";
 
 type Role = { role: string; count: number };
 type LinkItem = { type: "github" | "linkedin" | "peerlist"; url: string };
@@ -27,7 +28,7 @@ export function CreateProjectForm({
   const [executionType, setExecutionType] = useState("idea");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [roles, setRoles] = useState<Role[]>([{ role: "", count: 1 }]);
+  const [roles, setRoles] = useState<Role[]>([{ role: "", count: 1 }]); // role = predefined value or ""
   const [links, setLinks] = useState<LinkItem[]>([
     { type: "github", url: "" },
     { type: "linkedin", url: "" },
@@ -298,7 +299,7 @@ export function CreateProjectForm({
         <CardHeader>
           <h2 className="font-nunito text-lg font-semibold">Contributors needed</h2>
           <p className="font-inconsolata text-sm text-muted-foreground">
-            e.g. 2 Designers, 3 Backend devs
+            Select a role and the number of spots needed. Keeps tracking consistent.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -306,17 +307,25 @@ export function CreateProjectForm({
             <div key={i} className="flex gap-3 items-end">
               <div className="flex-1">
                 <label className="font-inconsolata text-sm mb-1 block">Role</label>
-                <Input
-                  placeholder="e.g. Designer, Backend dev"
+                <select
+                  className="flex h-12 w-full border-2 border-input bg-background px-4 font-inconsolata"
                   value={r.role}
                   onChange={(e) => updateRole(i, "role", e.target.value)}
-                />
+                >
+                  <option value="">Select role</option>
+                  {PREDEFINED_PROJECT_ROLES.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="w-24">
-                <label className="font-inconsolata text-sm mb-1 block">Count</label>
+              <div className="w-28">
+                <label className="font-inconsolata text-sm mb-1 block">Spots</label>
                 <Input
                   type="number"
                   min={1}
+                  max={99}
                   value={r.count}
                   onChange={(e) => updateRole(i, "count", parseInt(e.target.value) || 1)}
                 />

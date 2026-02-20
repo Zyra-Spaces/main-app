@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PREDEFINED_PROJECT_ROLES } from "@/lib/project-roles";
 
 type Role = { role: string; count: number };
 type LinkItem = { type: "github" | "linkedin" | "peerlist"; url: string };
@@ -336,38 +337,59 @@ export function EditProjectForm({
       <Card>
         <CardHeader>
           <h2 className="font-nunito text-lg font-semibold">Contributors needed</h2>
+          <p className="font-inconsolata text-sm text-muted-foreground">
+            Select a role and number of spots. Keeps tracking consistent.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {roles.map((r, i) => (
-            <div key={i} className="flex gap-3 items-end">
-              <div className="flex-1">
-                <label className="font-inconsolata text-sm mb-1 block">Role</label>
-                <Input
-                  placeholder="e.g. Designer, Backend dev"
-                  value={r.role}
-                  onChange={(e) => updateRole(i, "role", e.target.value)}
-                />
+          {(() => {
+            const predefinedValues = new Set(PREDEFINED_PROJECT_ROLES.map((o) => o.value));
+            const legacyOptions = roles
+              .filter((r) => r.role && !predefinedValues.has(r.role))
+              .map((r) => ({ value: r.role, label: r.role }));
+            const uniqueLegacy = Array.from(
+              new Map(legacyOptions.map((o) => [o.value, o])).values()
+            );
+            const roleOptions = [...PREDEFINED_PROJECT_ROLES, ...uniqueLegacy];
+            return roles.map((r, i) => (
+              <div key={i} className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <label className="font-inconsolata text-sm mb-1 block">Role</label>
+                  <select
+                    className="flex h-12 w-full border-2 border-input bg-background px-4 font-inconsolata"
+                    value={r.role}
+                    onChange={(e) => updateRole(i, "role", e.target.value)}
+                  >
+                    <option value="">Select role</option>
+                    {roleOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="w-28">
+                  <label className="font-inconsolata text-sm mb-1 block">Spots</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={r.count}
+                    onChange={(e) => updateRole(i, "count", parseInt(e.target.value) || 1)}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeRole(i)}
+                  disabled={roles.length === 1}
+                >
+                  ×
+                </Button>
               </div>
-              <div className="w-24">
-                <label className="font-inconsolata text-sm mb-1 block">Count</label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={r.count}
-                  onChange={(e) => updateRole(i, "count", parseInt(e.target.value) || 1)}
-                />
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => removeRole(i)}
-                disabled={roles.length === 1}
-              >
-                ×
-              </Button>
-            </div>
-          ))}
+            ));
+          })()}
           <Button type="button" variant="outline" onClick={addRole}>
             Add role
           </Button>
